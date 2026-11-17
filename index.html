@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Школа — Нейросети</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="particleCanvas"></canvas>
+    <div id="toast-container" class="toast-container"></div>
+
+       <!-- ================= ГЛАВНАЯ ================= -->
+    <div class="screen active" id="screen-home">
+        <div class="header">
+            <h1>AI Школа</h1>
+            <div class="avatar" id="main-avatar" onclick="switchTab('profile')">
+                <img src="logo.png" alt="Logo" onerror="this.style.display='none';this.parentElement.textContent='A'">
+            </div>
+        </div>
+
+        <div class="hero-card">
+            <h2>Привет, будущий хакер!</h2>
+            <p>50 уроков о том, как управлять нейросетями. Первые 3 — бесплатно!</p>
+            <div class="hero-actions">
+                <button class="btn-primary full-width" onclick="switchTab('lessons')">
+                    <span>▶</span> К списку уроков
+                </button>
+            </div>
+        </div>
+
+        <div class="streak-widget" id="streak-widget">
+            <div class="streak-fire">🔥</div>
+            <div class="streak-info">
+                <h3>Твой стрик: <span id="streak-count">0</span> дн.</h3>
+                <p id="streak-status">Заходи каждый день!</p>
+                <div class="streak-days" id="streak-days"></div>
+            </div>
+        </div>
+
+        <div class="stats-row">
+            <div class="mini-stat">
+                <span class="mini-label">Пройдено</span>
+                <span class="mini-value" id="stat-progress-text">0 / 50</span>
+            </div>
+            <div class="mini-stat">
+                <span class="mini-label">Твой XP</span>
+                <span class="mini-value green" id="stat-xp-text">0 XP</span>
+            </div>
+        </div>
+
+        <!-- ПРОГРЕСС БАР XP -->
+        <div class="result-dashboard" style="padding: 15px; margin-bottom: 20px;" id="xp-bar-wrap">
+            <!-- Сюда вставится прогресс-бар -->
+        </div>
+
+        <div class="result-dashboard" style="padding: 20px;">
+            <h3 style="color: var(--neon); margin-bottom: 10px;">Почему мы?</h3>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
+                Мы вложили душу в каждый урок. Никакой воды и скучных лекций. Только интерактив, реальные фишки и понятный язык. Мы обещаем: здесь ты научишься тому, что пригодится уже сегодня.
+            </p>
+        </div>
+    </div>
+    <!-- ================= СПИСОК УРОКОВ ================= -->
+    <div class="screen" id="screen-lessons">
+        <div class="header">
+            <h1>Уроки</h1>
+            <button class="btn-icon" onclick="switchTab('home')">✕</button>
+        </div>
+        <div id="lessons-list"></div>
+    </div>
+
+    <!-- ================= ЭКРАН УРОКА (динамический) ================= -->
+    <div class="screen" id="screen-lesson">
+        <div class="header">
+            <h1 id="lesson-header-title">Урок</h1>
+            <button class="btn-icon" onclick="switchTab('lessons')">✕</button>
+        </div>
+        <div id="lesson-body"></div>
+    </div>
+
+    <!-- ================= ТЕСТ ================= -->
+    <div class="screen" id="screen-test">
+        <div class="header">
+            <h1 id="test-header">Тест</h1>
+            <button class="btn-icon" onclick="switchTab('lessons')">✕</button>
+        </div>
+        <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" id="test-progress" style="width: 0%;"></div>
+        </div>
+        <div id="test-body"></div>
+    </div>
+
+    <!-- ================= PAYWALL ================= -->
+    <div class="screen" id="screen-paywall">
+        <div class="header">
+            <h1>Премиум</h1>
+            <button class="btn-icon" onclick="switchTab('lessons')">✕</button>
+        </div>
+        <div style="text-align: center; padding: 20px;">
+            <div style="font-size: 60px; margin-bottom: 10px;">🔒</div>
+            <h2 style="font-size: 24px; margin-bottom: 10px;">Доступ закрыт</h2>
+            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 30px;">
+                Оформи Премиум, чтобы открыть все 50 уроков и 4 теста.
+            </p>
+            <div class="premium-box">
+                <div class="premium-glow"></div>
+                <h3>💎 AI Школа Premium</h3>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Полный доступ на 30 дней</p>
+                <button class="btn-premium" onclick="buyPremium()">Оплатить 49 ⭐️</button>
+            </div>
+        </div>
+    </div>
+
+      <!-- ================= ПРОФИЛЬ ================= -->
+    <div class="screen" id="screen-profile">
+        <div class="header"><h1>Профиль</h1></div>
+        <div class="profile-card" style="text-align:center; margin-bottom: 20px;">
+            <div class="avatar big" id="profile-avatar">
+                <img src="logo.png" alt="Logo" onerror="this.style.display='none';this.parentElement.textContent='A'">
+            </div>
+            <h2 id="profile-name">Ученик</h2>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 5px;" id="profile-username">@username</p>
+            <p class="status" style="font-size: 14px;">Тариф: <span style="color: var(--neon); font-weight: 700;" id="profile-tariff">Базовый</span></p>
+        </div>
+        <div class="premium-box">
+            <div class="premium-glow"></div>
+            <h3>💎 AI Школа Premium</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Неограниченный доступ ко всем 50 урокам.</p>
+            <button class="btn-premium" onclick="buyPremium()">Купить за 49 ⭐️</button>
+        </div>
+        
+        <!-- СЕКРЕТНАЯ КНОПКА -->
+        <div style="text-align: center; margin-top: 30px;">
+            <button onclick="secretAdminLogin()" style="background: transparent; border: 1px dashed #333; color: #444; padding: 10px 20px; border-radius: 10px; font-size: 12px; cursor: pointer;">
+                🔐 Секретная кнопка
+            </button>
+        </div>
+    </div>
+
+    <!-- ================= НИЖНЯЯ НАВИГАЦИЯ ================= -->
+    <div class="bottom-nav">
+        <button class="nav-item active" data-tab="home" onclick="switchTab('home', this)">
+            <span class="icon">🏠</span><span class="text">Главная</span>
+        </button>
+        <button class="nav-item" data-tab="lessons" onclick="switchTab('lessons', this)">
+            <span class="icon">📚</span><span class="text">Уроки</span>
+        </button>
+        <button class="nav-item" data-tab="profile" onclick="switchTab('profile', this)">
+            <span class="icon">👤</span><span class="text">Профиль</span>
+        </button>
+    </div>
+
+    <script src="lessons.js"></script>
+    <script src="tests.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
