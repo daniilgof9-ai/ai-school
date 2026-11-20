@@ -79,30 +79,42 @@ function getRankInfo(xp) {
 }
 
 function updateStreak() {
-    const now = new Date().toISOString();
-    if (!state.lastLogin) { state.streak = 1; }
-    else if (!isSameDay(state.lastLogin, now)) {
-        if (daysBetween(state.lastLogin, now) === 1) state.streak += 1;
-        else if (daysBetween(state.lastLogin, now) > 1) state.streak = 1;
-    }
-    state.lastLogin = now;
-    saveState();
-    renderStreak();
-}
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    if (!state.lastLogin) {
+        // Первый заход
+        state.streak = 1;
+        state.lastLogin = todayStr;
+    } else {
+        const lastDate = new Date(state.lastLogin);
+        const currentDate = new Date(todayStr);
+        const diffDays = Math.floor((currentDate - lastDate) / (1000 * 60 * 60 * 24));
 
-function renderStreak() {
-    const countEl = document.getElementById('streak-count');
-    if (!countEl) return;
-    countEl.textContent = state.streak;
-    const daysEl = document.getElementById('streak-days');
-    if (daysEl) {
-        daysEl.innerHTML = '';
-        for (let i = 0; i < 7; i++) {
-            const d = document.createElement('div');
-            d.className = 'streak-day' + (i < Math.min(state.streak, 7) ? ' done' : '');
-            daysEl.appendChild(d);
+        if (diffDays === 1) {
+            // Зашел на следующий день — стрик растет
+            state.streak += 1;
+            state.lastLogin = todayStr;
+        } else if (diffDays > 1) {
+            // Пропустил больше 1 дня — стрик сгорает
+            state.streak = 1;
+            state.lastLogin = todayStr;
+        }
+        // Если diffDays === 0 — зашел в тот же день, стрик не меняется
+    }
+    
+    // Бонус за стрик (каждые 7 дней)
+    if (state.streak > 0 && state.streak % 7 === 0) {
+        // Проверяем, не давали ли уже бонус сегодня
+        if (state.lastBonusDate !== todayStr) {
+            state.xp += 10;
+            state.lastBonusDate = todayStr;
+            showToast('🔥 Стрик ' + state.streak + ' дней! +10 XP', 'success');
         }
     }
+    
+    saveState();
+    renderStreak();
 }
 
 function switchTab(tabId, btnElement = null) {
@@ -129,11 +141,9 @@ function switchTab(tabId, btnElement = null) {
 function renderHome() {
     const rank = getRankInfo(state.xp);
     
-    // Заполняем единственный блок статистики
     document.getElementById('stat-progress-text').textContent = `${state.completedLessons.length} / 50`;
     document.getElementById('stat-xp-text').textContent = `${state.xp} XP`;
     
-    // Прогресс бар
     const xpBarWrap = document.getElementById('xp-bar-wrap');
     if (xpBarWrap) {
         const currentLevelXp = state.xp - rank.min;
@@ -187,9 +197,10 @@ function renderLessonsList() {
             if (!completed) allLessonsCompleted = false;
 
             const div = document.createElement('div');
+            const titleStyle = lesson.id === 50 ? 'font-weight: 900; color: #fff;' : '';
             div.className = 'lesson-item ' + (unlocked ? (completed ? 'completed' : 'unlocked') : 'locked');
             div.innerHTML = `
-                <div><div class="lesson-title">${lesson.id}. ${lesson.title}</div><div class="lesson-meta">${completed ? '✅ Пройден' : unlocked ? '▶ Доступен' : '🔒 Премиум'}</div></div>
+                <div><div class="lesson-title" style="${titleStyle}">${lesson.id}. ${lesson.title}</div><div class="lesson-meta">${completed ? '✅ Пройден' : unlocked ? '▶ Доступен' : '🔒 Премиум'}</div></div>
                 <div style="font-size: 18px;">${completed ? '✅' : unlocked ? '▶' : '🔒'}</div>
             `;
             div.onclick = () => unlocked ? openLesson(lesson.id) : showPaywall();
@@ -226,10 +237,13 @@ function renderLessonsList() {
                 }
             }
 
+            // БЕРЕМ РЕАЛЬНОЕ КОЛИЧЕСТВО ВОПРОСОВ ИЗ TESTS.JS
+            const qCount = TESTS[testId].questions.length;
+
             if (canRetake) {
                 testDiv.style.borderColor = 'var(--neon)';
                 testDiv.innerHTML = `
-                    <div><div class="lesson-title" style="color: var(--neon);">📝 ${TESTS[testId].title}</div><div class="lesson-meta">${testPassed ? `Результат: ${state.testScores[testId] || 0}/20 (Пересдача доступна)` : '20 вопросов'}</div></div>
+                    <div><div class="lesson-title" style="color: var(--neon);">📝 ${TESTS[testId].title}</div><div class="lesson-meta">${testPassed ? `Результат: ${state.testScores[testId] || 0}/${qCount} (Пересдача доступна)` : `${qCount} вопросов`}</div></div>
                     <div style="font-size: 18px;">${testPassed ? '🔄' : '▶'}</div>
                 `;
                 testDiv.onclick = () => openTest(testId);
@@ -237,7 +251,7 @@ function renderLessonsList() {
                 testDiv.style.opacity = '0.6';
                 testDiv.style.cursor = 'not-allowed';
                 testDiv.innerHTML = `
-                    <div><div class="lesson-title" style="color: var(--text-muted);">📝 ${TESTS[testId].title}</div><div class="lesson-meta">Пройден: ${state.testScores[testId] || 0}/20. Пересдача через <b>${timeLeftStr}</b></div></div>
+                    <div><div class="lesson-title" style="color: var(--text-muted);">📝 ${TESTS[testId].title}</div><div class="lesson-meta">Пройден: ${state.testScores[testId] || 0}/${qCount}. Пересдача через <b>${timeLeftStr}</b></div></div>
                     <div style="font-size: 18px;">⏳</div>
                 `;
                 testDiv.onclick = () => showToast(`Пересдача будет доступна через ${timeLeftStr}`, 'error');
@@ -246,7 +260,6 @@ function renderLessonsList() {
         }
     });
 }
-
 // ==================== ИНТЕРАКТИВНЫЙ УРОК ====================
 let currentLessonData = null;
 let currentStep = 0;
@@ -280,7 +293,6 @@ function renderLessonStep() {
     const body = document.getElementById('lesson-body');
     body.innerHTML = '';
 
-    // Проверяем, факт это или практика
     const isFact = !currentLessonData.practice && currentLessonData.fact;
     const stepName = isFact ? 'Факт' : 'Практика';
 
@@ -341,7 +353,6 @@ function tryJumpToStep(step) {
     goToStep(step);
 }
 
-// Выносим в window, чтобы onclick работал
 window.goToStep = function(step) {
     currentStep = step;
     if (step > maxAllowedStep) maxAllowedStep = step;
@@ -457,7 +468,15 @@ function renderLessonPractice(body) {
                         if (b.textContent === currentLessonData.practice.correct) b.classList.add('correct');
                     });
                 }
-                setTimeout(() => showStep1Next(body), 800);
+                setTimeout(() => {
+                    if (!body.querySelector('.lesson-actions')) {
+                        const actions = document.createElement('div');
+                        actions.className = 'lesson-actions';
+                        actions.innerHTML = `<button class="btn-primary full-width" style="margin-top: 20px;" onclick="goToStep(3)">Перейти к итогу →</button>`;
+                        body.appendChild(actions);
+                        actions.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    }
+                }, 800);
             };
             optionsWrap.appendChild(btn);
         });
@@ -475,7 +494,15 @@ function renderLessonPractice(body) {
                 if (clickedCount === currentLessonData.practice.blocks.length) {
                     practicePassed = true;
                     showToast('Промпт собран!', 'success');
-                    setTimeout(() => showStep1Next(body), 500);
+                    setTimeout(() => {
+                        if (!body.querySelector('.lesson-actions')) {
+                            const actions = document.createElement('div');
+                            actions.className = 'lesson-actions';
+                            actions.innerHTML = `<button class="btn-primary full-width" style="margin-top: 20px;" onclick="goToStep(3)">Перейти к итогу →</button>`;
+                            body.appendChild(actions);
+                            actions.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                        }
+                    }, 500);
                 }
             };
             blocksWrap.appendChild(div);
@@ -528,7 +555,13 @@ function renderDragDropLesson(lesson, body, wrap) {
             if (isCorrect) {
                 triggerHaptic('success'); showToast('Правильно!', 'success');
                 practicePassed = true;
-                setTimeout(() => showStep1Next(body), 500);
+                if (!body.querySelector('.lesson-actions')) {
+                    const actions = document.createElement('div');
+                    actions.className = 'lesson-actions';
+                    actions.innerHTML = `<button class="btn-primary full-width" style="margin-top: 20px;" onclick="goToStep(3)">Перейти к итогу →</button>`;
+                    body.appendChild(actions);
+                    actions.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }
             } else {
                 triggerHaptic('error'); showToast('Порядок неверный. Попробуй ещё раз!', 'error');
                 selected = []; renderItems();
@@ -639,7 +672,14 @@ function completeLesson(id) {
     }
 
     saveState();
-    setTimeout(() => switchTab('lessons'), 600);
+    setTimeout(() => {
+        switchTab('lessons');
+        const moduleIndex = Math.floor((id - 1) / 12);
+        const moduleHeaders = document.querySelectorAll('#lessons-list h3');
+        if (moduleHeaders[moduleIndex]) {
+            moduleHeaders[moduleIndex].scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 600);
 }
 
 // ==================== ТЕСТЫ ====================
@@ -798,5 +838,21 @@ window.completeLesson = completeLesson;
 window.processTextPrompt = processTextPrompt;
 window.secretAdminLogin = secretAdminLogin;
 
-function init() { loadState(); updateStreak(); renderHome(); renderProfile(); renderLessonsList(); switchTab('home'); }
-document.addEventListener('DOMContentLoaded', init);
+function init() { 
+    loadState(); 
+    
+    // Сбрасываем Premium, если он не был куплен через реальную оплату (проверка по флагу)
+    // В нашем случае, если в localStorage isPremium был true, но isAdmin и isPremium по умолчанию false,
+    // мы оставляем только если это было реально сохранено. 
+    // Но чтобы сбросить у всех, кто просто зашел впервые:
+    if (!localStorage.getItem('ai_school_state')) {
+        state.isPremium = false;
+        state.isAdmin = false;
+    }
+
+    updateStreak(); 
+    renderHome(); 
+    renderProfile(); 
+    renderLessonsList(); 
+    switchTab('home'); 
+}
